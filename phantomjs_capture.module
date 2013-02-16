@@ -48,7 +48,7 @@ function phantomjs_capture_admin_form() {
     '#description' => t('This module requries that you install PhantomJS on your server and enter the path to the executable. The program is not include in the module due to linces and operation system constrains. See !url for information about download.', array(
       '!url' => l('PhantomJs.org','http://phantomjs.org/'),
     )),
-    '#default_value' => variable_get('phantomjs_capture_binary', _phantomjs_get_binray()),
+    '#default_value' => variable_get('phantomjs_capture_binary', _phantomjs_capture_get_binray()),
   );
 
   $form['phantomjs_settings']['phantomjs_capture_dest'] = array(
@@ -79,7 +79,7 @@ function phantomjs_capture_admin_form() {
   $form['phantomjs_capture_test']['url'] = array(
     '#type' => 'textfield',
     '#title' => t('URL'),
-    '#description' => t('Absolute URL to page to capture.'),
+    '#description' => t('Absolute URL to the homepage that should be capture (it has to be a complet URL with http://).'),
     '#default_value' => 'http://www.google.com',
   );
 
@@ -227,13 +227,13 @@ function _phantomjs_capture_get_binray() {
  * @param string $url
  *  The ULR/http(s) to render the screenshot from.
  * @param type $dest
- *  The destionation for the rendered file (e.g. public://fecth_images).
+ *  The destionation for the rendered file (e.g. public://fecthed_images).
  * @param type $filename
  *  The filename to store the file as in the destination.
  * @return boolean
  *  Returns TRUE if the screenshot was taken else FALSE on error.
  */
-function phantomjs_capture_capture_screen($url, $dest, $filename) {
+function phantomjs_capture_screen($url, $dest, $filename) {
   // Get PhantomJS binary.
   $binary = _phantomjs_capture_get_binray();
   if (!$binary) {
@@ -251,7 +251,7 @@ function phantomjs_capture_capture_screen($url, $dest, $filename) {
 
   // Get absolute path to PhantomJS script and the destionation file.
   $script = realpath(variable_get('phantomjs_capture_script', drupal_get_path('module', 'phantomjs_capture') . '/js/phantomjs_capture.js'));
-  $dest = drupal_realpath(file_uri_to_object($dest . '/' . $filename)->uri);
+  $dest = drupal_realpath($dest . '/' . $filename);
 
   // Run PhantomJS to create the screen shot.
   exec($binary . ' ' . $script . ' ' . $url . ' ' . $dest, $output);
