@@ -10,6 +10,12 @@
  */
 function phantomjs_capture_field_field_schema($field) {
   $columns = array(
+    // Store the URL enterd.
+    'url'=> array(
+      'type' => 'text',
+      'not null' => TRUE,
+    ),
+    // Store the URI to the image captured (screenshot).
     'uri' => array(
       'type' => 'text',
       'not null' => TRUE,

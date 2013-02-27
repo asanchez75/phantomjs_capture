@@ -2,7 +2,7 @@
 
 /**
  * @file
- * 
+ *
  */
 
 /**
@@ -40,7 +40,7 @@ function phantomjs_capture_field_field_validate($entity_type, $entity, $field, $
  *
  */
 function phantomjs_capture_field_field_is_empty($item, $field) {
-  return empty($item['uri']);
+  return empty($item['url']);
 }
 
 /**
@@ -50,7 +50,7 @@ function phantomjs_capture_field_field_is_empty($item, $field) {
 function phantomjs_capture_field_field_widget_info() {
   return array(
     'phantomjs_capture_field_widget' => array(
-      'label' => t('URI with image'),
+      'label' => t('Simple URL'),
       'field types' => array('phantomjs_capture_field'),
     ),
   );
@@ -103,28 +103,224 @@ function phantomjs_capture_field_field_instance_settings_form($field, $instance)
  */
 function phantomjs_capture_field_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
   $element += array(
-    'uri' => array(
+    'url' => array(
       '#type' => 'textfield',
       '#title' => $instance['label'],
       '#description' => $instance['description'],
-      '#default_value' => isset($items[$delta]['uri']) ? $items[$delta]['uri'] : '',
+      '#default_value' => isset($items[$delta]['url']) ? $items[$delta]['url'] : '',
       '#element_validate' => array('phantomjs_capture_field_validate'),
     ),
-  );  
-    
+    'uri' => array(
+      '#type' => 'hidden',
+      '#default_value' => isset($items[$delta]['uri']) ? $items[$delta]['uri'] : '',
+    ),
+  );
+
   return $element;
 }
 
+/**
+ * Field validator that ensure that a url was given.
+ *
+ * @param type $element
+ * @param type $form_state
+ */
 function phantomjs_capture_field_validate($element, &$form_state) {
-  if (!valid_url($element['#value'])) {
+  if (!empty($element['#value']) && !valid_url($element['#value'])) {
     form_error($element, t("Needs to be a valid URL."));
   }
 }
 
 /**
- * Implements hook_field_widget_error().
+ * Implements hook_field_formatter_info().
  *
  */
-function phantomjs_capture_field_field_widget_error($element, $error, $form, &$form_state) {
-  form_error($element, $error['message']);
+function phantomjs_capture_field_field_formatter_info() {
+  return array(
+    'phantomjs_capture_field_formatter' => array(
+      'label' => t('Image'),
+      'field types' => array('phantomjs_capture_field'),
+      'settings' => array(
+        'image_style' => '',
+        'image_link' => '',
+      ),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_settings_form().
+ *
+ */
+function phantomjs_capture_field_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
+  $display = $instance['display'][$view_mode];
+  $settings = $display['settings'];
+
+  $element = array();
+
+  $image_styles = image_style_options(FALSE);
+  $element['image_style'] = array(
+    '#title' => t('Image style'),
+    '#type' => 'select',
+    '#default_value' => $settings['image_style'],
+    '#empty_option' => t('None (original image)'),
+    '#options' => $image_styles,
+  );
+
+  $element['image_link'] = array(
+    '#title' => t('Link image to'),
+    '#type' => 'select',
+    '#default_value' => $settings['image_link'],
+    '#empty_option' => t('Nothing'),
+    '#options' => array(
+      'site' => t('Site'),
+    ),
+  );
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_formatter_settings_summary().
+ *
+ */
+function phantomjs_capture_field_field_formatter_settings_summary($field, $instance, $view_mode) {
+  $display = $instance['display'][$view_mode];
+  $settings = $display['settings'];
+
+  $summary = array();
+
+  $image_styles = image_style_options(FALSE);
+  // Unset possible 'No defined styles' option.
+  unset($image_styles['']);
+  // Styles could be lost because of enabled/disabled modules that defines
+  // their styles in code.
+  if (isset($image_styles[$settings['image_style']])) {
+    $summary[] = t('Image style: @style', array('@style' => $image_styles[$settings['image_style']]));
+  }
+  else {
+    $summary[] = t('Original image');
+  }
+
+  $link_types = array(
+    'site' => t('Linked to site'),
+  );
+  // Display this setting only if image is linked.
+  if (isset($link_types[$settings['image_link']])) {
+    $summary[] = $link_types[$settings['image_link']];
+  }
+
+  return implode('<br />', $summary);
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ *
+ */
+function phantomjs_capture_field_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+  foreach ($items as $delta => $item) {
+    // Build return element
+    $element[$delta] = array(
+      '#theme' => 'image_formatter',
+      '#item' => array(
+        'uri' => $item['uri'],
+        'alt' => '',
+        'title' => '',
+      ),
+      '#image_style' => isset($display['settings']['image_style']) ? $display['settings']['image_style'] : '',
+      '#path' => '',
+    );
+
+    // Add link to the image, if selected.
+    if (isset($display['settings']['image_link'])) {
+      switch ($display['settings']['image_link']) {
+        case 'site':
+          $element[$delta]['#path'] = array(
+            'path' => $item['url'],
+            'options' => array(),
+          );
+          break;
+      }
+    }
+  }
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_insert().
+ *
+ */
+function phantomjs_capture_field_field_insert($entity_type, $entity, $field, $instance, $langcode, &$items) {
+  $dest = $field['settings']['uri_scheme'] . '://' . $instance['settings']['file_directory'] . '/';
+  foreach ($items as $delta => &$item) {
+    $file = md5($entity->nid . REQUEST_TIME . $delta) . '.jpg';
+
+    // Try to capture the site.
+    if (phantomjs_capture_screen($item['url'], $dest, $file)) {
+      $item['uri'] = $dest . $file;
+    }
+    else {
+      drupal_set_message(t('PhantomJS chould not create screenshot of !url', array('!url' => $item['url'])), 'error');
+    }
+  }
+}
+
+/**
+ * Implements hook_field_update().
+ *
+ */
+function phantomjs_capture_field_field_update($entity_type, $entity, $field, $instance, $langcode, &$items) {
+  // Build destination path.
+  $dest = $field['settings']['uri_scheme'] . '://' . $instance['settings']['file_directory'] . '/';
+
+  // Get old items values.
+  $old_items = field_get_items($entity_type, $entity->original, $field['field_name']);
+
+  // Loop over current items.
+  foreach ($items as $delta => &$item) {
+    // Check if value have been update as taking captures takes time.
+    if ($old_items[$delta]['url'] != $item['url']) {
+      if (isset($item['uri'])) {
+        $path = drupal_realpath($item['uri']);
+
+        // Build path and remove old screenshot.
+        if (file_exists($path)) {
+          unlink($path);
+        }
+
+        // Remove image style copies.
+        image_path_flush($item['uri']);
+      }
+
+      $file = md5($entity->nid . REQUEST_TIME . $delta) . '.jpg';
+
+      // Try to capture the site.
+      if (phantomjs_capture_screen($item['url'], $dest, $file)) {
+        $item['uri'] = $dest . $file;
+      }
+      else {
+        $item['uri'] = '';
+        drupal_set_message(t('PhantomJS chould not create screenshot of !url', array('!url' => $item['url'])), 'error');
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_field_delete().
+ *
+ */
+function phantomjs_capture_field_field_delete($entity_type, $entities, $field, $instances, $langcode, &$items) {
+  foreach ($items as $item) {
+    $path = drupal_realpath($item['uri']);
+    // Remove screenshot.
+    if (file_exists($path)) {
+      unlink($path);
+    }
+
+    // Remove image style copies.
+    image_path_flush($item['uri']);
+  }
 }
