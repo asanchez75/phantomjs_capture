@@ -1,0 +1,130 @@
+<?php
+
+/**
+ * @file
+ * 
+ */
+
+/**
+ * Implements hook_field_info().
+ *
+ * Adds a new field that can be used to show image screenshots of a given URL.
+ */
+function phantomjs_capture_field_field_info() {
+  return array(
+    'phantomjs_capture_field' => array(
+      'label' => t('PhantomJS'),
+      'description' => t('Field to use PhantomJS Screen Capture.'),
+      'settings' => array(
+        'uri_scheme' => variable_get('file_default_scheme', 'public'),
+      ),
+      'instance_settings' => array(
+        'file_directory' => '',
+      ),
+      'default_widget' => 'phantomjs_capture_field_widget',
+      'default_formatter' => 'phantomjs_capture_field_formatter'
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_validate().
+ *
+ */
+function phantomjs_capture_field_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &$errors) {
+
+}
+
+/**
+ * Implements hook_field_is_empty().
+ *
+ */
+function phantomjs_capture_field_field_is_empty($item, $field) {
+  return empty($item['uri']);
+}
+
+/**
+ * Implements hook_field_widget_info().
+ *
+ */
+function phantomjs_capture_field_field_widget_info() {
+  return array(
+    'phantomjs_capture_field_widget' => array(
+      'label' => t('URI with image'),
+      'field types' => array('phantomjs_capture_field'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_settings_form().
+ *
+ */
+function phantomjs_capture_field_field_settings_form($field, $instance, $has_data) {
+  $form = array();
+  $defaults = field_info_field_settings($field['type']);
+  $settings = array_merge($defaults, $field['settings']);
+
+  $scheme_options = array();
+  foreach (file_get_stream_wrappers(STREAM_WRAPPERS_WRITE_VISIBLE) as $scheme => $stream_wrapper) {
+    $scheme_options[$scheme] = $stream_wrapper['name'];
+  }
+  $form['uri_scheme'] = array(
+    '#type' => 'radios',
+    '#title' => t('Upload destination'),
+    '#options' => $scheme_options,
+    '#default_value' => $settings['uri_scheme'],
+    '#description' => t('Select where the final files should be stored. Private file storage has significantly more overhead than public files, but allows restricted access to files within this field.'),
+  );
+
+  return $form;
+}
+
+/**
+ * Implements hook_field_instance_settings_form().
+ */
+function phantomjs_capture_field_field_instance_settings_form($field, $instance) {
+  $settings = $instance['settings'];
+  $form = array();
+
+  $form['file_directory'] = array(
+    '#type' => 'textfield',
+    '#title' => t('File directory'),
+    '#default_value' => $settings['file_directory'],
+    '#description' => t('Optional subdirectory within the upload destination where files will be stored. Do not include preceding or trailing slashes.'),
+    '#element_validate' => array('_file_generic_settings_file_directory_validate'),
+  );
+
+  return $form;
+}
+
+/**
+ * Implements hook_field_widget_form().
+ */
+function phantomjs_capture_field_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+  $element += array(
+    'uri' => array(
+      '#type' => 'textfield',
+      '#title' => $instance['label'],
+      '#description' => $instance['description'],
+      '#default_value' => isset($items[$delta]['uri']) ? $items[$delta]['uri'] : '',
+      '#element_validate' => array('phantomjs_capture_field_validate'),
+    ),
+  );  
+    
+  return $element;
+}
+
+function phantomjs_capture_field_validate($element, &$form_state) {
+  if (!valid_url($element['#value'])) {
+    form_error($element, t("Needs to be a valid URL."));
+  }
+}
+
+/**
+ * Implements hook_field_widget_error().
+ *
+ */
+function phantomjs_capture_field_field_widget_error($element, $error, $form, &$form_state) {
+  form_error($element, $error['message']);
+}
