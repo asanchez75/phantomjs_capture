@@ -264,7 +264,7 @@ function phantomjs_capture_field_field_insert($entity_type, $entity, $field, $in
       $item['uri'] = $dest . $file;
     }
     else {
-      drupal_set_message(t('PhantomJS chould not create screenshot of %url', array('%url' => url($item['url']))), 'error');
+      drupal_set_message(t('PhantomJS chould not create screenshot of !url', array('!url' => l($item['url'], $item['url']))), 'error');
     }
   }
 }
@@ -304,7 +304,7 @@ function phantomjs_capture_field_field_update($entity_type, $entity, $field, $in
       }
       else {
         $item['uri'] = '';
-        drupal_set_message(t('PhantomJS chould not create screenshot of %url', array('%url' => url($item['url']))), 'error');
+        drupal_set_message(t('PhantomJS chould not create screenshot of !url', array('!url' => l($item['url'], $item['url']))), 'error');
       }
     }
   }
