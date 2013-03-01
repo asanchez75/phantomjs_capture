@@ -2,7 +2,9 @@
 
 /**
  * @file
- *
+ * Implements a new field that takes usages of the PhantomJS capture module to
+ * allow users to enter an URL and display the screenshot captured as an image
+ * on the entity.
  */
 
 /**
@@ -105,8 +107,8 @@ function phantomjs_capture_field_field_widget_form(&$form, &$form_state, $field,
   $element += array(
     'url' => array(
       '#type' => 'textfield',
-      '#title' => $instance['label'],
-      '#description' => $instance['description'],
+      '#title' => check_plain($instance['label']),
+      '#description' => check_plain($instance['description']),
       '#default_value' => isset($items[$delta]['url']) ? $items[$delta]['url'] : '',
       '#element_validate' => array('phantomjs_capture_field_validate'),
     ),
@@ -262,7 +264,7 @@ function phantomjs_capture_field_field_insert($entity_type, $entity, $field, $in
       $item['uri'] = $dest . $file;
     }
     else {
-      drupal_set_message(t('PhantomJS chould not create screenshot of !url', array('!url' => $item['url'])), 'error');
+      drupal_set_message(t('PhantomJS chould not create screenshot of %url', array('%url' => url($item['url']))), 'error');
     }
   }
 }
@@ -302,7 +304,7 @@ function phantomjs_capture_field_field_update($entity_type, $entity, $field, $in
       }
       else {
         $item['uri'] = '';
-        drupal_set_message(t('PhantomJS chould not create screenshot of !url', array('!url' => $item['url'])), 'error');
+        drupal_set_message(t('PhantomJS chould not create screenshot of %url', array('%url' => url($item['url']))), 'error');
       }
     }
   }

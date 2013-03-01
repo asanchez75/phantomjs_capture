@@ -11,7 +11,7 @@
 function phantomjs_capture_field_field_schema($field) {
   $columns = array(
     // Store the URL enterd.
-    'url'=> array(
+    'url' => array(
       'type' => 'text',
       'not null' => TRUE,
     ),
