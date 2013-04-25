@@ -19,7 +19,7 @@ function phantomjs_capture_menu() {
     'description' => 'Screen capture with PhantomJS',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('phantomjs_capture_admin_form'),
-    'access arguments' => array('adminstre site'),
+    'access arguments' => array('adminster site'),
   );
 
   return $items;
