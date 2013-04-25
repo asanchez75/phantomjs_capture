@@ -5,11 +5,12 @@
  */
 var page = require('webpage').create();
 var system = require('system');
-var address, output, size;
+var address, output, size, selector;
 
 // Get the input parameters.
 address = system.args[1];
 output = system.args[2];
+selector = system.args[3];
 
 // Set the capture size to full HD.
 page.viewportSize = { width: 1920, height: 1080 };
@@ -21,17 +22,36 @@ if (system.args.length === 3 && system.args[1].substr(-4) === ".pdf") {
 }
 
 // Open the address and capture the screen after 200 mill-seconds (give the
-// screen the change to run JS alters).
+// screen the chance to run JS alters).
 page.open(address, function (status) {
   if (status !== 'success') {
     // Error fetching page.
-    console.log('500');
     phantom.exit();
   } else {
     window.setTimeout(function () {
-      // Page fetach and timeout ran out... so capture the screen.
+      // Page fetch and timeout ran out... so capture the screen.
+      if (selector) {
+        var clipRect = page.evaluate(function (selector) {
+          var domelement = document.querySelector(selector);
+
+          if (domelement) {
+            return domelement.getBoundingClientRect();
+          } else {
+            return undefined;
+          }
+        }, selector);
+
+        if (clipRect) {
+          page.clipRect = {
+              top:    clipRect.top,
+              left:   clipRect.left,
+              width:  clipRect.width,
+              height: clipRect.height
+          };
+        }
+      }
+
       page.render(output);
-      console.log('200');
       phantom.exit();
     }, 200);
   }
