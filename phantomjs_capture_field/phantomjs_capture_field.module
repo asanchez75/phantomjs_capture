@@ -97,6 +97,18 @@ function phantomjs_capture_field_field_instance_settings_form($field, $instance)
     '#element_validate' => array('_file_generic_settings_file_directory_validate'),
   );
 
+  $form['file_type'] = array(
+    '#type' => 'select',
+    '#title' => t('File type'),
+    '#options' => array(
+      'jpg' => 'jpg',
+      'png' => 'png',
+      'pdf' => 'pdf',
+    ),
+    '#default_value' => isset($settings['file_type']) ? $settings['file_type'] : 'jpg',
+    '#description' => t('Select the type of file to store the captured screen shot as in the folder above.'),
+  );
+
   return $form;
 }
 
@@ -257,7 +269,8 @@ function phantomjs_capture_field_field_formatter_view($entity_type, $entity, $fi
 function phantomjs_capture_field_field_insert($entity_type, $entity, $field, $instance, $langcode, &$items) {
   $dest = $field['settings']['uri_scheme'] . '://' . $instance['settings']['file_directory'] . '/';
   foreach ($items as $delta => &$item) {
-    $file = md5($entity->nid . REQUEST_TIME . $delta) . '.jpg';
+    $file_type = isset($instance['settings']['file_type']) ? $instance['settings']['file_type'] : 'jpg';
+    $file = md5($entity->nid . REQUEST_TIME . $delta) . '.' . $file_type;
 
     // Try to capture the site.
     if (phantomjs_capture_screen($item['url'], $dest, $file)) {
@@ -296,7 +309,8 @@ function phantomjs_capture_field_field_update($entity_type, $entity, $field, $in
         image_path_flush($item['uri']);
       }
 
-      $file = md5($entity->nid . REQUEST_TIME . $delta) . '.jpg';
+      $file_type = isset($instance['settings']['file_type']) ? $instance['settings']['file_type'] : 'jpg';
+      $file = md5($entity->nid . REQUEST_TIME . $delta) . '.' . $file_type;
 
       // Try to capture the site.
       if (phantomjs_capture_screen($item['url'], $dest, $file)) {

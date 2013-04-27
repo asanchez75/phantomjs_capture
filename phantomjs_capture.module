@@ -127,9 +127,9 @@ function phantomjs_capture_test_submit($form, $form_state) {
   $dest = file_default_scheme() . '://' . variable_get('phantomjs_capture_dest', 'phantomjs');
 
   // Get the screenshot and create success/error message.
-  $output = '<div class="messages status"><ul><li>' . t('File have been generated. You can get it !url', array('!url' => l(t('here'), file_create_url($dest . '/' . $file)))) . '</ul></li></div>';
+  $output = '<div class="messages status"><ul><li>' . t('File have been generated. You can get it !url', array('!url' => l(t('here'), file_create_url($dest . '/' . $file)))) . '.</ul></li></div>';
   if (!phantomjs_capture_screen($url, $dest, $file)) {
-    $output = '<div class="messages error"><ul><li>' . t('The address entered could not be retrieved') . '</ul></li></div>';
+    $output = '<div class="messages error"><ul><li>' . t('The address entered could not be retrieved.') . '</ul></li></div>';
   }
 
   // Return
@@ -256,6 +256,7 @@ function phantomjs_capture_screen($url, $dest, $filename, $element = NULL) {
   $dest = drupal_realpath($dest . '/' . $filename);
 
   // Run PhantomJS to create the screen shot.
+  $output = array();
   if ($element) {
     exec($binary . ' ' . $script . ' ' . $url . ' ' . $dest . ' ' . escapeshellarg($element), $output);
   } else {
