@@ -295,8 +295,8 @@ function phantomjs_capture_field_field_update($entity_type, $entity, $field, $in
 
   // Loop over current items.
   foreach ($items as $delta => &$item) {
-    // Check if value have been update as taking captures takes time.
-    if ($old_items[$delta]['url'] != $item['url']) {
+    // Check if value have been update as taking captures takes time is expensive.
+    if (!isset($old_items[$delta]['url']) || $old_items[$delta]['url'] != $item['url']) {
       if (isset($item['uri'])) {
         $path = drupal_realpath($item['uri']);
 
