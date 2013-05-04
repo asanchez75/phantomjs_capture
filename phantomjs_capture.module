@@ -259,7 +259,8 @@ function phantomjs_capture_screen($url, $dest, $filename, $element = NULL) {
   $output = array();
   if ($element) {
     exec($binary . ' ' . $script . ' ' . $url . ' ' . $dest . ' ' . escapeshellarg($element), $output);
-  } else {
+  }
+  else {
     exec($binary . ' ' . $script . ' ' . $url . ' ' . $dest, $output);
   }
 
