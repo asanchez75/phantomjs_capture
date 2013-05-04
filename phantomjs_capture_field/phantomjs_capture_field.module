@@ -13,6 +13,23 @@
  */
 
 /**
+ * Implements hook_permission().
+ *
+ * The self entity capture formatter/widget needs to have anonymous access to a
+ * view mode menu callback to capture the rendered entity. So this permission
+ * have to be set to allow anonymouse access, so it's here to prevent access to
+ * content when not using the modules self capture capabilities.
+ */
+function phantomjs_capture_field_permission() {
+  return array(
+    'access phantomjs view mode' => array(
+      'title' => t('PhantomJS view modw'),
+      'description' => t('Allow access to use the PhantomJS view mode (anonymous need access for the view mode capture to work correctly).'),
+    ),
+  );
+}
+
+/**
  * Implements hook_menu().
  *
  * Adds memu callback to render the node in a given view mode which is used when
@@ -320,7 +337,32 @@ function phantomjs_capture_field_field_formatter_settings_summary($field, $insta
  */
 function phantomjs_capture_field_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
   $element = array();
+  $settings = $display['settings'];
+
   foreach ($items as $delta => $item) {
+    // If this formatter uses view mode.
+    if ($display['type'] == 'phantomjs_capture_field_view_mode_formatter') {
+      // Check if uri exists.
+      $file = drupal_realpath($item['uri']);
+      if (!file_exists($file)) {
+        // Build capture url.
+        $entity_ids = entity_extract_ids($entity_type, $entity);
+        $entity_id = array_shift($entity_ids);
+        $url = url('phantomjs/' . $entity_id . '/' . $settings['view_mode'], array('absolute' => TRUE));
+
+        // Build destination.
+        $dest = $field['settings']['uri_scheme'] . '://' . $instance['settings']['file_directory'];
+
+        // Try to capture the entity.
+        if (!phantomjs_capture_screen($url, $dest, basename($file))) {
+          drupal_set_message(t('PhantomJS chould not create screenshot of the entity', 'error'));
+        }
+        else {
+          return $element;
+        }
+      }
+    }
+
     // Build return element
     $element[$delta] = array(
       '#theme' => 'image_formatter',
@@ -329,13 +371,13 @@ function phantomjs_capture_field_field_formatter_view($entity_type, $entity, $fi
         'alt' => '',
         'title' => '',
       ),
-      '#image_style' => isset($display['settings']['image_style']) ? $display['settings']['image_style'] : '',
+      '#image_style' => isset($settings['image_style']) ? $settings['image_style'] : '',
       '#path' => '',
     );
 
     // Add link to the image, if selected.
-    if (isset($display['settings']['image_link'])) {
-      switch ($display['settings']['image_link']) {
+    if (isset($settings['image_link'])) {
+      switch ($settings['image_link']) {
         case 'site':
           $element[$delta]['#path'] = array(
             'path' => $item['url'],
@@ -355,17 +397,37 @@ function phantomjs_capture_field_field_formatter_view($entity_type, $entity, $fi
  */
 function phantomjs_capture_field_field_insert($entity_type, $entity, $field, $instance, $langcode, &$items) {
   $dest = $field['settings']['uri_scheme'] . '://' . $instance['settings']['file_directory'] . '/';
-  foreach ($items as $delta => &$item) {
-    $file_type = isset($instance['settings']['file_type']) ? $instance['settings']['file_type'] : 'jpg';
-    $file = md5($entity->nid . REQUEST_TIME . $delta) . '.' . $file_type;
 
-    // Try to capture the site.
-    if (phantomjs_capture_screen($item['url'], $dest, $file)) {
-      $item['uri'] = $dest . $file;
-    }
-    else {
-      drupal_set_message(t('PhantomJS chould not create screenshot of !url', array('!url' => l($item['url'], $item['url']))), 'error');
-    }
+  switch ($instance['widget']['type']) {
+    case 'phantomjs_capture_field_hidden_widget':
+      // Generate the new file name.
+      $file_type = isset($instance['settings']['file_type']) ? $instance['settings']['file_type'] : 'jpg';
+      $file = md5($entity->nid . REQUEST_TIME) . '.' . $file_type;
+
+      // Store the path (the capture is taken in field formatter).
+      $items = array(
+        array(
+          'url' => 'self',
+          'uri' => $dest . $file,
+        )
+      );
+      break;
+
+    default:
+      foreach ($items as $delta => &$item) {
+        // Generate the new file name.
+        $file_type = isset($instance['settings']['file_type']) ? $instance['settings']['file_type'] : 'jpg';
+        $file = md5($entity->nid . REQUEST_TIME . $delta) . '.' . $file_type;
+
+        // Try to capture the site.
+        if (phantomjs_capture_screen($item['url'], $dest, $file)) {
+          $item['uri'] = $dest . $file;
+        }
+        else {
+          drupal_set_message(t('PhantomJS chould not create screenshot of !url', array('!url' => l($item['url'], $item['url']))), 'error');
+        }
+      }
+      break;
   }
 }
 
@@ -377,17 +439,14 @@ function phantomjs_capture_field_field_update($entity_type, $entity, $field, $in
   // Build destination path.
   $dest = $field['settings']['uri_scheme'] . '://' . $instance['settings']['file_directory'] . '/';
 
-  // Get old items values.
-  $old_items = field_get_items($entity_type, $entity->original, $field['field_name']);
+  switch ($instance['widget']['type']) {
+    case 'phantomjs_capture_field_hidden_widget':
+      // Get the item.
+      $item = &$items[0];
 
-  // Loop over current items.
-  foreach ($items as $delta => &$item) {
-    // Check if value have been update as taking captures takes time is expensive.
-    if (!isset($old_items[$delta]['url']) || $old_items[$delta]['url'] != $item['url']) {
+      // Build path and remove old screenshot.
       if (isset($item['uri'])) {
         $path = drupal_realpath($item['uri']);
-
-        // Build path and remove old screenshot.
         if (file_exists($path)) {
           unlink($path);
         }
@@ -396,18 +455,52 @@ function phantomjs_capture_field_field_update($entity_type, $entity, $field, $in
         image_path_flush($item['uri']);
       }
 
+      // Generate the new file name.
       $file_type = isset($instance['settings']['file_type']) ? $instance['settings']['file_type'] : 'jpg';
-      $file = md5($entity->nid . REQUEST_TIME . $delta) . '.' . $file_type;
+      $file = md5($entity->nid . REQUEST_TIME) . '.' . $file_type;
 
-      // Try to capture the site.
-      if (phantomjs_capture_screen($item['url'], $dest, $file)) {
-        $item['uri'] = $dest . $file;
+      // Store the path (the capture is taken in field formatter).
+      $items = array(
+        array(
+          'url' => 'self',
+          'uri' => $dest . $file,
+        )
+      );
+      break;
+
+    default:
+      // Get old items values.
+      $old_items = field_get_items($entity_type, $entity->original, $field['field_name']);
+
+      // Loop over current items.
+      foreach ($items as $delta => &$item) {
+        // Check if value have been update as taking captures takes time is expensive.
+        if (!isset($old_items[$delta]['url']) || $old_items[$delta]['url'] != $item['url']) {
+          if (isset($item['uri'])) {
+            // Build path and remove old screenshot.
+            $path = drupal_realpath($item['uri']);
+            if (file_exists($path)) {
+              unlink($path);
+            }
+
+            // Remove image style copies.
+            image_path_flush($item['uri']);
+          }
+
+          $file_type = isset($instance['settings']['file_type']) ? $instance['settings']['file_type'] : 'jpg';
+          $file = md5($entity->nid . REQUEST_TIME . $delta) . '.' . $file_type;
+
+          // Try to capture the site.
+          if (phantomjs_capture_screen($item['url'], $dest, $file)) {
+            $item['uri'] = $dest . $file;
+          }
+          else {
+            $item['uri'] = '';
+            drupal_set_message(t('PhantomJS chould not create screenshot of !url', array('!url' => l($item['url'], $item['url']))), 'error');
+          }
+        }
       }
-      else {
-        $item['uri'] = '';
-        drupal_set_message(t('PhantomJS chould not create screenshot of !url', array('!url' => l($item['url'], $item['url']))), 'error');
-      }
-    }
+      break;
   }
 }
 
