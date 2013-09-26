@@ -1,5 +1,4 @@
 <?php
-
 /**
  * @file
  * Defines the schema used by the slide preview filed.
@@ -10,12 +9,12 @@
  */
 function phantomjs_capture_field_field_schema($field) {
   $columns = array(
-    // Store the URL enterd.
+    // Store the URL entered.
     'url' => array(
       'type' => 'text',
       'not null' => TRUE,
     ),
-    // Store the URI to the image captured (screenshot).
+    // Store the URI to the image captured (screen shot).
     'uri' => array(
       'type' => 'text',
       'not null' => TRUE,

@@ -1,7 +1,7 @@
 /**
  * PhantomJS action file used to tell Phantom how to capture screens. The
  * timeout is used to give JS a change to change content on the page before
- * taking the screenshot.
+ * taking the screen shot.
  */
 var page = require('webpage').create();
 var system = require('system');
